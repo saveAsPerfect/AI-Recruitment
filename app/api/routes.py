@@ -8,9 +8,11 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Request
+from fastapi.concurrency import run_in_threadpool
 from elasticsearch import AsyncElasticsearch
 
 from app.core.config import get_settings
+from app.core.email_inbox import fetch_resume_attachments, EmailInboxError
 from app.core.matching import run_bm25, run_semantic, run_llm, run_hybrid
 from app.core.storage import (
     upsert_candidate, upsert_vacancy,
@@ -21,6 +23,7 @@ from app.core.embeddings import EmbeddingService
 from app.models.schemas import (
     Candidate, Vacancy, MatchResult,
     RecommendationResponse, MatchingMethod,
+    EmailIngestRequest, EmailIngestResponse, EmailIngestItem,
 )
 from app.utils.resume_parser import extract_text, parse_resume_with_llm, build_candidate, TextExtractionError, ResumeParseError
 
@@ -123,26 +126,13 @@ async def upload_resume(
     tmp_path.write_bytes(await file.read())
 
     try:
-        raw_text = extract_text(str(tmp_path))
+        return await _ingest_candidate_from_file(tmp_path, es)
     except TextExtractionError as e:
-        tmp_path.unlink(missing_ok=True)
         raise HTTPException(422, str(e))
-    finally:
-        tmp_path.unlink(missing_ok=True)
-
-    try:
-        parsed = parse_resume_with_llm(raw_text, settings.OPENAI_API_KEY, settings.OPENAI_PARSE_MODEL)
     except ResumeParseError as e:
         raise HTTPException(503, str(e))
-
-    c_dict = build_candidate(parsed, raw_text)
-    candidate = Candidate(**c_dict)
-
-    embedder = get_embedder()
-    emb = embedder.encode_one(_candidate_search_text(c_dict))
-    await upsert_candidate(es, candidate, emb)
-
-    return candidate
+    finally:
+        tmp_path.unlink(missing_ok=True)
 
 
 @router.post("/candidates", response_model=Candidate, tags=["Candidates"])
@@ -171,6 +161,58 @@ async def remove_candidate(candidate_id: str, es: AsyncElasticsearch = Depends(g
     if not ok:
         raise HTTPException(404, "Candidate not found")
     return {"deleted": candidate_id}
+
+
+@router.post("/emails/fetch", response_model=EmailIngestResponse, tags=["Email"])
+async def fetch_from_email(
+    request: EmailIngestRequest,
+    es: AsyncElasticsearch = Depends(get_es),
+):
+    """
+    Fetch new resumes from IMAP inbox, save attachments locally, optionally parse into candidates.
+    """
+    try:
+        fetched = await run_in_threadpool(
+            fetch_resume_attachments,
+            max_messages=request.max_messages,
+            include_seen=request.include_seen,
+            mark_seen=request.mark_seen,
+        )
+    except EmailInboxError as e:
+        raise HTTPException(503, str(e))
+
+    items: list[EmailIngestItem] = []
+    parsed_count = 0
+    for item in fetched["items"]:
+        base = {
+            "message_id": item.get("message_id"),
+            "from_email": item.get("from_email"),
+            "subject": item.get("subject"),
+            "attachment_name": item["attachment_name"],
+            "saved_path": item["saved_path"],
+        }
+        if not request.parse_resumes:
+            items.append(EmailIngestItem(**base, status="saved"))
+            continue
+
+        try:
+            candidate = await _ingest_candidate_from_file(Path(item["saved_path"]), es)
+            parsed_count += 1
+            items.append(
+                EmailIngestItem(**base, status="parsed", candidate_id=candidate.id)
+            )
+        except (TextExtractionError, ResumeParseError) as e:
+            items.append(EmailIngestItem(**base, status="failed", error=str(e)))
+        except Exception as e:
+            logger.exception("Unexpected error while parsing resume from email")
+            items.append(EmailIngestItem(**base, status="failed", error=str(e)))
+
+    return EmailIngestResponse(
+        fetched_messages=fetched["fetched_messages"],
+        saved_attachments=len(fetched["items"]),
+        parsed_candidates=parsed_count,
+        items=items,
+    )
 
 
 # ── Vacancies ─────────────────────────────────────────────────────────────────
@@ -240,3 +282,15 @@ def _vacancy_search_text(v: dict) -> str:
         v.get("description") or "",
     ]
     return " ".join(p for p in parts if p)
+
+
+async def _ingest_candidate_from_file(path: Path, es: AsyncElasticsearch) -> Candidate:
+    raw_text = extract_text(str(path))
+    parsed = parse_resume_with_llm(raw_text, settings.OPENAI_API_KEY, settings.OPENAI_PARSE_MODEL)
+    c_dict = build_candidate(parsed, raw_text)
+    candidate = Candidate(**c_dict)
+
+    embedder = get_embedder()
+    emb = embedder.encode_one(_candidate_search_text(c_dict))
+    await upsert_candidate(es, candidate, emb)
+    return candidate

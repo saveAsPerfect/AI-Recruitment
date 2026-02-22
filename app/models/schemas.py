@@ -79,3 +79,28 @@ class LLMCacheEntry(BaseModel):
     score: float
     explanation: str
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class EmailIngestRequest(BaseModel):
+    max_messages: int = Field(default=20, ge=1, le=200)
+    include_seen: bool = False
+    mark_seen: bool = True
+    parse_resumes: bool = True
+
+
+class EmailIngestItem(BaseModel):
+    message_id: Optional[str] = None
+    from_email: Optional[str] = None
+    subject: Optional[str] = None
+    attachment_name: str
+    saved_path: str
+    status: str
+    candidate_id: Optional[str] = None
+    error: Optional[str] = None
+
+
+class EmailIngestResponse(BaseModel):
+    fetched_messages: int
+    saved_attachments: int
+    parsed_candidates: int
+    items: list[EmailIngestItem] = Field(default_factory=list)

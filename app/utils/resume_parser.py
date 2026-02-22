@@ -239,7 +239,9 @@ def _langchain_parse(text: str, api_key: str, model: str) -> dict:
     from langchain_core.output_parsers import JsonOutputParser
     from langchain_core.prompts import ChatPromptTemplate
 
-    llm = ChatOpenAI(model=model, temperature=0, api_key=api_key)
+    import os
+    base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    llm = ChatOpenAI(model=model, temperature=0, api_key=api_key, base_url=base_url)
     parser = JsonOutputParser(pydantic_object=_ParsedCandidate)
 
     prompt = ChatPromptTemplate.from_messages([

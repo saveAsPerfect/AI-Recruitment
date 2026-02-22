@@ -11,10 +11,20 @@ class Settings(BaseSettings):
     APP_PORT: int = 8000
     LOG_LEVEL: str = "INFO"
 
-    # OpenAI
+    # OpenAI / LLM (Groq / Ollama compatible)
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
-    OPENAI_PARSE_MODEL: str = "gpt-4o-mini"   # model for LangChain structured parsing
+    OPENAI_PARSE_MODEL: str = "gpt-4o-mini"
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+
+    # Inbound email (IMAP)
+    IMAP_HOST: str = ""
+    IMAP_PORT: int = 993
+    IMAP_USER: str = ""
+    IMAP_PASSWORD: str = ""
+    IMAP_FOLDER: str = "INBOX"
+    IMAP_USE_SSL: bool = True
+    IMAP_ALLOWED_EXTENSIONS: str = ".pdf,.doc,.docx,.txt"
 
     # Elasticsearch
     ES_HOST: str = "http://elasticsearch:9200"

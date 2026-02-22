@@ -41,6 +41,13 @@ services:
       - EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
       - DATA_DIR=/app/data
       - RESUMES_DIR=/app/data/resumes
+      - IMAP_HOST=${IMAP_HOST:-}
+      - IMAP_PORT=${IMAP_PORT:-993}
+      - IMAP_USER=${IMAP_USER:-}
+      - IMAP_PASSWORD=${IMAP_PASSWORD:-}
+      - IMAP_FOLDER=${IMAP_FOLDER:-INBOX}
+      - IMAP_USE_SSL=${IMAP_USE_SSL:-true}
+      - IMAP_ALLOWED_EXTENSIONS=${IMAP_ALLOWED_EXTENSIONS:-.pdf,.doc,.docx,.txt}
       - LOG_LEVEL=INFO
       - BM25_CANDIDATES=${BM25_CANDIDATES:-20}
     depends_on:
