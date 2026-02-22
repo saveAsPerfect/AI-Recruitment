@@ -1,6 +1,7 @@
 """
 Streamlit frontend — AI Recruiting Agent v2
 """
+import os
 import uuid
 import requests
 import streamlit as st
@@ -8,7 +9,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 
-API = "http://api:8000/api/v1"
+# URL for the FastAPI backend
+API = os.getenv("API_URL", "http://localhost:8000/api/v1")
 
 st.set_page_config(
     page_title="AI Recruiting Agent",

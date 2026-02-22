@@ -179,7 +179,10 @@ async def llm_score_candidates(
         return candidates  # return unchanged
 
     import openai
-    client = openai.AsyncOpenAI(api_key=api_key)
+    client = openai.AsyncOpenAI(
+        api_key=api_key,
+        base_url=settings.OPENAI_BASE_URL
+    )
 
     vacancy_id = vacancy.get("id", "unknown")
     # Load all cached entries for this vacancy at once
