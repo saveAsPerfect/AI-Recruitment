@@ -1,5 +1,12 @@
 # 🤖 AI Recruitment System
 
+![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.111+-009688.svg)
+![Elasticsearch](https://img.shields.io/badge/Elasticsearch-8.x-005571.svg)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.36+-FF4B4B.svg)
+![Docker](https://img.shields.io/badge/Docker-Containerization-2496ED.svg)
+![LangChain](https://img.shields.io/badge/LangChain-Framework-white.svg)
+
 An intelligent end-to-end recruitment automation system that leverages LLMs and vector search to streamline candidate sourcing, resume parsing, and matching. It automatically processes resumes from email inboxes, extracts structured data, and ranks candidates against job vacancies using a sophisticated hybrid matching pipeline.
 
 ---
