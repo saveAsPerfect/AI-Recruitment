@@ -1,0 +1,46 @@
+"""
+Application configuration — loaded from environment variables / .env file.
+"""
+from functools import lru_cache
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    # App
+    APP_HOST: str = "0.0.0.0"
+    APP_PORT: int = 8000
+    LOG_LEVEL: str = "INFO"
+
+    # OpenAI
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4o-mini"
+    OPENAI_PARSE_MODEL: str = "gpt-4o-mini"   # model for LangChain structured parsing
+
+    # Elasticsearch
+    ES_HOST: str = "http://elasticsearch:9200"
+    ES_INDEX_CANDIDATES: str = "candidates"
+    ES_INDEX_VACANCIES: str = "vacancies"
+    ES_INDEX_LLM_CACHE: str = "llm_cache"
+
+    # Embedding model
+    EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
+    EMBEDDING_DIM: int = 384
+
+    # Matching
+    TOP_K_RESULTS: int = 5
+    BM25_CANDIDATES: int = 20          # BM25 pre-filter before LLM
+    BM25_WEIGHT: float = 0.5           # RRF / hybrid blend
+    DENSE_WEIGHT: float = 0.5
+
+    # Data
+    DATA_DIR: str = "./data"
+    RESUMES_DIR: str = "./data/resumes"
+
+    class Config:
+        env_file = ".env"
+        extra = "ignore"
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    return Settings()

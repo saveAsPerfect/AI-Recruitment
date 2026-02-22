@@ -1,0 +1,42 @@
+# Web framework
+fastapi==0.111.0
+uvicorn==0.30.1
+python-multipart==0.0.9
+
+# Settings
+pydantic==2.7.4
+pydantic-settings==2.3.4
+
+# Elasticsearch
+elasticsearch[async]==8.14.0
+
+# LangChain + OpenAI (for structured resume parsing)
+langchain==0.2.6
+langchain-openai==0.1.14
+langchain-core==0.2.10
+openai==1.35.13
+
+# Embeddings
+sentence-transformers==3.0.1
+torch==2.3.1
+
+# Document parsing
+python-docx==1.1.2
+pdfminer.six==20231228
+PyPDF2==3.0.1
+# OCR for scanned / image-only PDFs
+pytesseract==0.3.13
+pdf2image==1.17.0
+Pillow==10.3.0
+
+# Frontend
+streamlit==1.36.0
+plotly==5.22.0
+pandas==2.2.2
+
+# Utils
+python-dotenv==1.0.1
+loguru==0.7.2
+aiofiles==23.2.1
+httpx==0.27.0
+tenacity==8.3.0
