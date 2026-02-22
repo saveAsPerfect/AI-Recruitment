@@ -1,6 +1,7 @@
 """
 AI Recruiting Agent v2 — FastAPI application.
 """
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -23,14 +24,45 @@ logger = logging.getLogger("app")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup — connect to ES and ensure indices exist
+    # ── Startup ───────────────────────────────────────────────────────────────
     Path(settings.RESUMES_DIR).mkdir(parents=True, exist_ok=True)
     es = get_es_client()
     app.state.es = es
     await init_indices(es)
     logger.info("AI Recruiting Agent v2 started ✓")
+
+    # Start background email scheduler (if IMAP is configured and enabled)
+    email_task: asyncio.Task | None = None
+    if settings.EMAIL_SCHEDULER_ENABLED and settings.IMAP_HOST and settings.IMAP_USER:
+        from app.core.email_scheduler import email_scheduler_loop
+        email_task = asyncio.create_task(
+            email_scheduler_loop(app),
+            name="email_scheduler",
+        )
+        logger.info(
+            "Email scheduler task started (interval=%d min).",
+            settings.EMAIL_SCHEDULER_INTERVAL_MINUTES,
+        )
+    else:
+        logger.info(
+            "Email scheduler disabled "
+            "(EMAIL_SCHEDULER_ENABLED=%s, IMAP_HOST='%s', IMAP_USER='%s').",
+            settings.EMAIL_SCHEDULER_ENABLED,
+            settings.IMAP_HOST,
+            settings.IMAP_USER,
+        )
+
     yield
-    # Shutdown
+
+    # ── Shutdown ──────────────────────────────────────────────────────────────
+    if email_task is not None and not email_task.done():
+        email_task.cancel()
+        try:
+            await email_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("Email scheduler task stopped.")
+
     await es.close()
     logger.info("Elasticsearch connection closed.")
 

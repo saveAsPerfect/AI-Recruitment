@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     IMAP_FOLDER: str = "INBOX"
     IMAP_USE_SSL: bool = True
     IMAP_ALLOWED_EXTENSIONS: str = ".pdf,.doc,.docx,.txt"
+    # Max size of a single email attachment (bytes). Default: 10 MB.
+    IMAP_MAX_ATTACHMENT_BYTES: int = 10 * 1024 * 1024
 
     # Elasticsearch
     ES_HOST: str = "http://elasticsearch:9200"
@@ -45,6 +47,12 @@ class Settings(BaseSettings):
     # Data
     DATA_DIR: str = "./data"
     RESUMES_DIR: str = "./data/resumes"
+
+    # Email scheduler
+    EMAIL_SCHEDULER_ENABLED: bool = True
+    EMAIL_SCHEDULER_INTERVAL_MINUTES: int = 60
+    EMAIL_SCHEDULER_STARTUP_DELAY_SECONDS: int = 15   # wait for ES on cold start
+    EMAIL_SCHEDULER_MAX_MESSAGES: int = 50
 
     class Config:
         env_file = ".env"

@@ -1,5 +1,15 @@
 """
 Inbound email integration (IMAP) for automatic resume collection.
+
+Security measures implemented here:
+  • Attachment extensions are whitelisted (IMAP_ALLOWED_EXTENSIONS).
+  • A hard blacklist of executable / dangerous extensions is applied on top of
+    the whitelist, so misconfigured environments cannot accidentally allow them.
+  • Attachment **size** is capped at IMAP_MAX_ATTACHMENT_BYTES (default 10 MB).
+    Oversized payloads are logged and discarded without being written to disk.
+  • Filenames are sanitised to prevent path-traversal attacks — only
+    alphanumeric chars, dots, underscores, and hyphens are allowed.
+  • No attachment payload is ever executed; bytes are written to disk only.
 """
 import imaplib
 import logging
@@ -16,6 +26,23 @@ from app.core.config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+# Extensions that must NEVER be saved, regardless of whitelist configuration.
+_BLOCKED_EXTENSIONS: frozenset[str] = frozenset({
+    # Executables
+    ".exe", ".com", ".bat", ".cmd", ".msi", ".ps1", ".psm1", ".psd1",
+    # Scripts
+    ".sh", ".bash", ".zsh", ".fish", ".ksh", ".csh",
+    ".vbs", ".vba", ".js", ".jse", ".wsf", ".wsh",
+    # Libraries / loaders
+    ".dll", ".so", ".dylib",
+    # Archives that may auto-extract and execute
+    ".jar", ".scr",
+    # Office macros
+    ".xlsm", ".xltm", ".xlam", ".docm", ".dotm", ".pptm", ".potm",
+    # Other
+    ".hta", ".pif", ".lnk", ".reg", ".inf",
+})
+
 
 class EmailInboxError(RuntimeError):
     """Raised when IMAP fetch cannot be completed."""
@@ -29,6 +56,12 @@ def fetch_resume_attachments(
 ) -> dict[str, Any]:
     """
     Fetch resume-like attachments from IMAP and save to local storage.
+
+    Security:
+      - Only whitelisted extensions are accepted.
+      - Blocked/executable extensions are always rejected.
+      - Attachments exceeding IMAP_MAX_ATTACHMENT_BYTES are skipped.
+      - Filenames are sanitised before writing to disk.
 
     Returns:
       {
@@ -88,6 +121,7 @@ def fetch_resume_attachments(
                 email_message=email_message,
                 save_dir=save_dir,
                 allowed_ext=allowed_ext,
+                max_bytes=settings.IMAP_MAX_ATTACHMENT_BYTES,
             )
 
             for saved in attachments_saved:
@@ -145,8 +179,19 @@ def _validate_imap_settings() -> None:
 
 
 def _allowed_extensions(raw: str) -> set[str]:
+    """
+    Build the set of *permitted* extensions from the config string,
+    then remove any that appear in the hard-blocked list.
+    """
     exts = {e.strip().lower() for e in raw.split(",") if e.strip()}
-    return exts or {".pdf", ".doc", ".docx", ".txt"}
+    safe = (exts or {".pdf", ".doc", ".docx", ".txt"}) - _BLOCKED_EXTENSIONS
+    blocked_overlap = exts & _BLOCKED_EXTENSIONS
+    if blocked_overlap:
+        logger.warning(
+            "email_inbox: the following extensions are in IMAP_ALLOWED_EXTENSIONS "
+            "but are blocked for security: %s", blocked_overlap
+        )
+    return safe
 
 
 def _decode_mime(value: str | None) -> str | None:
@@ -169,22 +214,70 @@ def _extract_raw_email(msg_data: list[Any]) -> bytes:
 
 
 def _safe_filename(name: str) -> str:
-    return re.sub(r"[^A-Za-z0-9._-]", "_", name).strip("._") or "attachment.bin"
+    """
+    Sanitise a filename to prevent path-traversal and shell-injection.
+    Only ASCII letters, digits, dots, hyphens, underscores are kept.
+    Leading dots/underscores are stripped to avoid hidden files.
+    """
+    # Strip any directory component first
+    name = Path(name).name
+    sanitised = re.sub(r"[^A-Za-z0-9._-]", "_", name).strip("._")
+    return sanitised or "attachment.bin"
 
 
-def _save_resume_attachments(email_message, save_dir: Path, allowed_ext: set[str]) -> list[dict[str, str]]:
+def _save_resume_attachments(
+    email_message,
+    save_dir: Path,
+    allowed_ext: set[str],
+    max_bytes: int,
+) -> list[dict[str, str]]:
+    """
+    Walk the email MIME tree and save whitelisted, size-limited attachments.
+
+    Args:
+        email_message: Parsed email.message.Message object.
+        save_dir:      Directory to write files into.
+        allowed_ext:   Set of lowercase extensions that are permitted.
+        max_bytes:     Maximum attachment size in bytes; larger payloads are
+                       discarded and a warning is logged.
+
+    Returns:
+        List of dicts with 'attachment_name' and 'saved_path'.
+    """
     saved: list[dict[str, str]] = []
 
     for idx, part in enumerate(email_message.walk()):
         filename = _decode_mime(part.get_filename())
         if not filename:
             continue
+
         ext = Path(filename).suffix.lower()
+
+        # Security check 1 — hard-blocked extensions (executables, scripts, etc.)
+        if ext in _BLOCKED_EXTENSIONS:
+            logger.warning(
+                "email_inbox: rejected attachment with blocked extension: '%s'", filename
+            )
+            continue
+
+        # Security check 2 — whitelist
         if ext not in allowed_ext:
+            logger.debug(
+                "email_inbox: skipped attachment with non-whitelisted extension: '%s'", filename
+            )
             continue
 
         payload = part.get_payload(decode=True)
         if not payload:
+            continue
+
+        # Security check 3 — size limit
+        payload_size = len(payload)
+        if payload_size > max_bytes:
+            logger.warning(
+                "email_inbox: attachment '%s' is too large (%d bytes > %d limit), skipped.",
+                filename, payload_size, max_bytes,
+            )
             continue
 
         ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")
@@ -192,6 +285,9 @@ def _save_resume_attachments(email_message, save_dir: Path, allowed_ext: set[str
         out_path = save_dir / f"{ts}_{idx}_{safe_name}"
         out_path.write_bytes(payload)
 
+        logger.debug(
+            "email_inbox: saved attachment '%s' → %s (%d bytes)", filename, out_path, payload_size
+        )
         saved.append(
             {
                 "attachment_name": filename,

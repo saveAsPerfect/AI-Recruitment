@@ -22,7 +22,7 @@ st.set_page_config(
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.title("🤖 AI Recruiting")
-    st.caption("v2 — Elasticsearch + LLM")
+    st.caption("v1")
     st.markdown("---")
     page = st.radio("", [
         "🔍 Find Candidates",
@@ -35,7 +35,7 @@ with st.sidebar:
 **Methods**
 - 🔵 **BM25** — ES full-text baseline  
 - 🟣 **Semantic** — Cosine similarity  
-- 🟢 **LLM** — BM25→GPT (cached)  
+- 🟢 **LLM** — BM25→GPT   
 - ⚡ **Hybrid** — RRF+rerank+LLM  
 """)
 

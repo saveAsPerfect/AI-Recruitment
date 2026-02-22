@@ -13,6 +13,7 @@ from elasticsearch import AsyncElasticsearch
 
 from app.core.config import get_settings
 from app.core.email_inbox import fetch_resume_attachments, EmailInboxError
+from app.core.email_scheduler import run_email_poll, get_seen_store
 from app.core.matching import run_bm25, run_semantic, run_llm, run_hybrid
 from app.core.storage import (
     upsert_candidate, upsert_vacancy,
@@ -244,6 +245,7 @@ async def get_one_vacancy(vacancy_id: str, es: AsyncElasticsearch = Depends(get_
 
 # ── Health ────────────────────────────────────────────────────────────────────
 
+
 @router.get("/health", tags=["System"])
 async def health(es: AsyncElasticsearch = Depends(get_es)):
     try:
@@ -253,11 +255,42 @@ async def health(es: AsyncElasticsearch = Depends(get_es)):
     except Exception as e:
         es_ok = False
         es_version = str(e)
+
+    seen = get_seen_store()
     return {
         "status": "ok" if es_ok else "degraded",
         "elasticsearch": es_ok,
         "es_version": es_version,
         "version": "2.0.0",
+        "email_scheduler": {
+            "enabled": settings.EMAIL_SCHEDULER_ENABLED,
+            "interval_minutes": settings.EMAIL_SCHEDULER_INTERVAL_MINUTES,
+            **seen.stats(),
+        },
+    }
+
+
+@router.post("/emails/trigger", tags=["Email"])
+async def trigger_email_poll(es: AsyncElasticsearch = Depends(get_es)):
+    """
+    Manually trigger one email-poll cycle immediately (same logic as scheduler).
+    Useful for testing or ad-hoc inbox checks without waiting for the next
+    scheduled run.
+    """
+    result = await run_email_poll(es)
+    return result
+
+
+@router.get("/emails/scheduler/status", tags=["Email"])
+async def scheduler_status():
+    """Return seen-store statistics and scheduler configuration."""
+    seen = get_seen_store()
+    return {
+        "scheduler_enabled": settings.EMAIL_SCHEDULER_ENABLED,
+        "interval_minutes": settings.EMAIL_SCHEDULER_INTERVAL_MINUTES,
+        "imap_host": settings.IMAP_HOST or None,
+        "imap_user": settings.IMAP_USER or None,
+        **seen.stats(),
     }
 
 
