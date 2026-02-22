@@ -22,7 +22,7 @@ st.set_page_config(
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.title("🤖 AI Recruiting")
-    st.caption("v1")
+    st.caption("v2.0")
     st.markdown("---")
     page = st.radio("", [
         "🔍 Find Candidates",
@@ -48,6 +48,19 @@ def api(method, path, **kwargs):
         return r.json()
     except requests.exceptions.ConnectionError:
         st.error("⚠️ API not reachable")
+        return None
+    except requests.exceptions.HTTPError as e:
+        # Try to extract human-readable detail from FastAPI JSON error response
+        detail = ""
+        try:
+            body = e.response.json()
+            detail = body.get("detail", "")
+        except Exception:
+            pass
+        if detail:
+            st.error(f"⚠️ {detail}")
+        else:
+            st.error(f"API error: {e}")
         return None
     except Exception as e:
         st.error(f"API error: {e}")

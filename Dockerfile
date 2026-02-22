@@ -13,8 +13,8 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 # Pre-download embedding model (baked into image — no network needed at runtime)
 RUN python -c "\
-from sentence_transformers import SentenceTransformer; \
-SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+    from sentence_transformers import SentenceTransformer; \
+    SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
 FROM python:3.11-slim
@@ -31,6 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
     tesseract-ocr-rus \
     tesseract-ocr-eng \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
@@ -38,6 +39,7 @@ COPY --from=builder /usr/local/bin/uvicorn /usr/local/bin/uvicorn
 COPY --from=builder /root/.cache /root/.cache
 
 COPY app/ ./app/
+COPY scripts/ ./scripts/
 
 RUN mkdir -p /app/data/resumes /app/data/vacancies
 

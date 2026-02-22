@@ -14,7 +14,7 @@ Security measures implemented here:
 import imaplib
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from email import message_from_bytes
 from email.header import decode_header
 from email.utils import parseaddr
@@ -280,7 +280,7 @@ def _save_resume_attachments(
             )
             continue
 
-        ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
         safe_name = _safe_filename(filename)
         out_path = save_dir / f"{ts}_{idx}_{safe_name}"
         out_path.write_bytes(payload)

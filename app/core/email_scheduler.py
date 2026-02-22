@@ -51,7 +51,7 @@ async def run_email_poll(es) -> dict:
     from app.core.email_inbox import fetch_resume_attachments, EmailInboxError
     from app.utils.resume_parser import (
         extract_text, parse_resume_with_llm, build_candidate,
-        TextExtractionError, ResumeParseError,
+        TextExtractionError, ResumeParseError, NotResumeError,
     )
     from app.core.storage import upsert_candidate
     from app.core.embeddings import EmbeddingService
@@ -157,6 +157,15 @@ async def run_email_poll(es) -> dict:
             seen.mark_message(message_id)
             seen.mark_file(file_bytes)
             failed_count += 1
+
+        except NotResumeError as exc:
+            logger.warning(
+                "Email scheduler: skipped non-resume attachment %s: %s",
+                item["attachment_name"], exc,
+            )
+            seen.mark_message(message_id)
+            seen.mark_file(file_bytes)
+            skipped_count += 1
 
         except Exception:
             logger.exception(

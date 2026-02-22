@@ -1,7 +1,7 @@
 """
 Pydantic schemas — new data model per requirements.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 from pydantic import BaseModel, Field
@@ -65,7 +65,7 @@ class RecommendationResponse(BaseModel):
     top_candidates: list[MatchResult]
     total_candidates_evaluated: int
     processing_time_seconds: float
-    generated_at: datetime = Field(default_factory=datetime.utcnow)
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Config:
         json_encoders = {datetime: lambda v: v.isoformat()}
@@ -78,7 +78,7 @@ class LLMCacheEntry(BaseModel):
     candidate_id: str
     score: float
     explanation: str
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class EmailIngestRequest(BaseModel):

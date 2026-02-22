@@ -4,13 +4,13 @@ An intelligent end-to-end recruitment automation system that leverages LLMs and 
 
 ---
 ## Find Top Candidates
-![top candidates Preview](app_top_candidates.png)
+![top candidates Preview](images/app_top_candidates.png)
 ## Analytics
-![Dashboard Preview](app_dashboard.png)
+![Dashboard Preview](images/app_dashboard.png)
 ## Manage Vacancies
-![Vacancies Preview](app_vacancies.png)
+![Vacancies Preview](images/app_vacancies.png)
 ## Upload Resume
-![Candidates Preview](app_resume.png)
+![Candidates Preview](images/app_resume.png)
 ---
 ## 🚀 Key Features
 
@@ -83,39 +83,76 @@ The "Hybrid" method combines multiple retrieval and analysis strategies into a s
 
 ## ⚙️ Getting Started
 
-### Using Docker (Recommended)
+### Option 1: Docker Compose (all services in containers)
+
+The easiest way — everything runs in Docker.
 
 1.  **Configure Environment**:
     ```bash
     cp .env.example .env
+    # Edit .env: set OPENAI_API_KEY (and OPENAI_BASE_URL for Groq)
     ```
-    Add your `OPENAI_API_KEY` to the `.env` file.
+
 2.  **Spin up the Stack**:
     ```bash
     docker compose up --build
     ```
+    > This starts **Elasticsearch**, **FastAPI API**, and **Streamlit frontend** as containers.
+    > All path variables (`ES_HOST`, `API_URL`, `DATA_DIR`, etc.) are set by docker-compose.yml.
+
 3.  **Seed Initial Data** (Optional):
     ```bash
     docker compose exec api python scripts/seed_data.py
+    # or from CSV dataset:
+    docker compose exec api python scripts/seed_from_csv.py
     ```
+
 4.  **Access the Apps**:
     - **Web Dashboard**: [http://localhost:8501](http://localhost:8501)
     - **API Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-### Local setup (Manual)
+---
 
-**Prerequisites**: Python 3.10+, Elasticsearch 8.x, Tesseract OCR.
+### Option 2: Local development (only Elasticsearch in Docker)
 
-1.  **Install Dependencies**:
+Run the backend and frontend locally in your Python environment, with only Elasticsearch in Docker.
+
+**Prerequisites**: Python 3.10+, Tesseract OCR (for scanned PDFs).
+
+1.  **Start Elasticsearch in Docker**:
+    ```bash
+    docker compose up elasticsearch
+    ```
+
+2.  **Install Dependencies**:
     ```bash
     pip install -r requirements.txt
     ```
-2.  **Configure `.env`**: Point to your local Elasticsearch instance and set your API keys.
-3.  **Run Backend**:
+
+3.  **Configure `.env`**:
     ```bash
+    cp .env.example .env
+    # Edit .env: set OPENAI_API_KEY
+    # ES_HOST should be http://localhost:9200 (default)
+    ```
+
+4.  **Run Backend**:
+    ```bash
+    uvicorn app.main:app --reload
+    # or
     python -m app.main
     ```
-4.  **Run Frontend**:
+
+5.  **Run Frontend** (in another terminal):
     ```bash
     streamlit run streamlit_app.py
     ```
+
+6.  **Seed Data** (Optional):
+    ```bash
+    python scripts/seed_data.py
+    ```
+
+7.  **Access the Apps**:
+    - **Web Dashboard**: [http://localhost:8501](http://localhost:8501)
+    - **API Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs)

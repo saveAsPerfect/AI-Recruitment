@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     IMAP_MAX_ATTACHMENT_BYTES: int = 10 * 1024 * 1024
 
     # Elasticsearch
-    ES_HOST: str = "http://elasticsearch:9200"
+    ES_HOST: str = "http://localhost:9200"
     ES_INDEX_CANDIDATES: str = "candidates"
     ES_INDEX_VACANCIES: str = "vacancies"
     ES_INDEX_LLM_CACHE: str = "llm_cache"

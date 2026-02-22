@@ -3,8 +3,10 @@
 .env.local
 .env.*.local
 
-# Data and logs
-data/
+# Runtime data (resumes, seen-store, etc.)
+data/resumes/
+data/vacancies/
+data/email_seen.json
 *.log
 logs/
 

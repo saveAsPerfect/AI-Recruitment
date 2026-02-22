@@ -26,7 +26,7 @@ from app.models.schemas import (
     RecommendationResponse, MatchingMethod,
     EmailIngestRequest, EmailIngestResponse, EmailIngestItem,
 )
-from app.utils.resume_parser import extract_text, parse_resume_with_llm, build_candidate, TextExtractionError, ResumeParseError
+from app.utils.resume_parser import extract_text, parse_resume_with_llm, build_candidate, TextExtractionError, ResumeParseError, NotResumeError
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -130,6 +130,8 @@ async def upload_resume(
         return await _ingest_candidate_from_file(tmp_path, es)
     except TextExtractionError as e:
         raise HTTPException(422, str(e))
+    except NotResumeError as e:
+        raise HTTPException(422, str(e))
     except ResumeParseError as e:
         raise HTTPException(503, str(e))
     finally:
@@ -202,6 +204,8 @@ async def fetch_from_email(
             items.append(
                 EmailIngestItem(**base, status="parsed", candidate_id=candidate.id)
             )
+        except NotResumeError as e:
+            items.append(EmailIngestItem(**base, status="not_resume", error=str(e)))
         except (TextExtractionError, ResumeParseError) as e:
             items.append(EmailIngestItem(**base, status="failed", error=str(e)))
         except Exception as e:
