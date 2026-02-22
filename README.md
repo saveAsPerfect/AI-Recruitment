@@ -73,11 +73,14 @@ The journey from a raw email to a ranked candidate involves several critical sta
 
 The "Hybrid" method combines multiple retrieval and analysis strategies into a single high-precision pipeline:
 
-1.  **BM25 Keyword Search**: A fast, reliable baseline using Elasticsearch's internal BM25 algorithm to filter the pool based on exact keyword matches (skills, roles, titles).
-2.  **Semantic Vector Search**: Finds candidates who are conceptually similar to the vacancy using **all-MiniLM-L6-v2** (Sentence-Transformers). This model generates 384-dimensional dense vector embeddings, allowing the system to match synonyms and context (e.g., matching "Frontend" with "React") via **cosine similarity**.
-3.  **Reciprocal Rank Fusion (RRF)**: Mathematically merges the rankings from BM25 and Semantic search to produce a balanced, high-quality candidate list.
-4.  **Cosine Rerank**: Refines the ranking by performing a high-precision vector comparison between the vacancy and stored candidate embeddings.
-5.  **LLM Deep Analysis**: The final stage where the LLM (**Llama 3-70B via Groq** by default) performs a granular analysis of the top-N candidates. It provides a final score (0.0 - 1.0) and generates a detailed human-readable explanation of why the candidate fits or what skills are missing.
+| Method | Description |
+| :--- | :--- |
+| **BM25** | A fast, reliable baseline using Elasticsearch's internal BM25 algorithm to filter the pool based on exact keyword matches (skills, roles, titles). |
+| **Semantic** | Finds candidates who are conceptually similar to the vacancy using **all-MiniLM-L6-v2** (Sentence-Transformers). Matches synonyms and context via **cosine similarity**. |
+| **RRF** | **Reciprocal Rank Fusion** — mathematically merges the rankings from BM25 and Semantic search to produce a balanced, high-quality candidate list. |
+| **Cosine Rerank** | Refines the ranking by performing a high-precision vector comparison between the vacancy and stored candidate embeddings. |
+| **LLM Analysis** | Final stage where the LLM (**Llama 3-70B**) performs a granular analysis of the top-N candidates, providing a 0.0-1.0 score and detailed matching insights. |
+
 
 ---
 
@@ -90,7 +93,7 @@ The easiest way — everything runs in Docker.
 1.  **Configure Environment**:
     ```bash
     cp .env.example .env
-    # Edit .env: set OPENAI_API_KEY (and OPENAI_BASE_URL for Groq)
+    # Edit .env: 
     ```
 
 2.  **Spin up the Stack**:
@@ -103,8 +106,6 @@ The easiest way — everything runs in Docker.
 3.  **Seed Initial Data** (Optional):
     ```bash
     docker compose exec api python scripts/seed_data.py
-    # or from CSV dataset:
-    docker compose exec api python scripts/seed_from_csv.py
     ```
 
 4.  **Access the Apps**:
@@ -132,7 +133,7 @@ Run the backend and frontend locally in your Python environment, with only Elast
 3.  **Configure `.env`**:
     ```bash
     cp .env.example .env
-    # Edit .env: set OPENAI_API_KEY
+    # Edit .env
     # ES_HOST should be http://localhost:9200 (default)
     ```
 
